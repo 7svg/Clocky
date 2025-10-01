@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Responsive Day Clock</title>
+  <style>
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      text-align: center;
+      background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-weight: 600;
+      color: #333;
+      font-size: clamp(20px, 5vw, 28px);
+    }
+
+    /* Controls panel */
+    #controls {
+      margin: 15px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+      display: block;
+      max-width: 95%;
+      width: 360px;
+    }
+    .inputBox {
+      width: 100%;
+      margin: 8px 0;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+    .colorPalette {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 10px;
+      gap: 10px;
+    }
+    .colorCircle {
+      width: clamp(32px, 10vw, 40px);
+      height: clamp(32px, 10vw, 40px);
+      border-radius: 50%;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: transform 0.2s, border 0.2s;
+    }
+    .colorCircle:hover { transform: scale(1.1); }
+    .colorCircle.selected { border: 3px solid #333; }
+
+    button {
+      margin-top: 15px;
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      border: none;
+      border-radius: 12px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #0056b3; }
+
+    /* Responsive canvas */
+    #clock {
+      display: block;
+      margin: 20px auto;
+      max-width: 95vw;
+      height: auto;
+    }
+
+    @media (max-width: 600px) {
+      #controls {
+        padding: 15px;
+      }
+      .inputBox {
+        font-size: 13px;
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>🕒 My Responsive Day Clock</h1>
+
+  <div id="controls">
+    <input type="time" id="start" class="inputBox">
+    <input type="time" id="end" class="inputBox">
+    <input type="text" id="taskName" class="inputBox" placeholder="Task name">
+
+    <div class="colorPalette">
+      <div class="colorCircle" style="background:rgba(0,0,0,0.5)" data-color="rgba(0,0,0,0.5)"></div>
+      <div class="colorCircle" style="background:rgba(255,0,0,0.5)" data-color="rgba(255,0,0,0.5)"></div>
+      <div class="colorCircle" style="background:rgba(0,0,255,0.5)" data-color="rgba(0,0,255,0.5)"></div>
+      <div class="colorCircle" style="background:rgba(255,255,0,0.5)" data-color="rgba(255,255,0,0.5)"></div>
+      <div class="colorCircle" style="background:rgba(0,255,0,0.5)" data-color="rgba(0,255,0,0.5)"></div>
+      <input type="color" id="customColor" title="Custom color">
+    </div>
+
+    <button onclick="addTask()">Add Task</button>
+  </div>
+
+  <canvas id="clock"></canvas>
+
+  <script>
+    const canvas = document.getElementById("clock");
+    const ctx = canvas.getContext("2d");
+    let radius;
+    let tasks = [];
+    let selectedColor = "rgba(0,0,0,0.5)";
+
+    function resizeCanvas() {
+      canvas.width = Math.min(window.innerWidth * 0.8, 400);
+      canvas.height = canvas.width;
+      radius = canvas.width / 2;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    // Select colors
+    document.querySelectorAll(".colorCircle").forEach(c => {
+      c.addEventListener("click", () => {
+        document.querySelectorAll(".colorCircle").forEach(cc => cc.classList.remove("selected"));
+        c.classList.add("selected");
+        selectedColor = c.dataset.color;
+      });
+    });
+    document.getElementById("customColor").addEventListener("input", (e) => {
+      selectedColor = e.target.value + "80"; // add transparency
+      document.querySelectorAll(".colorCircle").forEach(cc => cc.classList.remove("selected"));
+    });
+
+    function addTask() {
+      const startVal = document.getElementById("start").value;
+      const endVal = document.getElementById("end").value;
+      const name = document.getElementById("taskName").value;
+      if (!startVal || !endVal || !name) return alert("Fill all fields!");
+
+      const [sh, sm] = startVal.split(":").map(Number);
+      const [eh, em] = endVal.split(":").map(Number);
+      const start = sh + sm/60;
+      const end = eh + em/60;
+
+      tasks.push({ start, end, color: selectedColor, name });
+      drawClock();
+    }
+
+    function drawClock() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      // Draw tasks
+      tasks.forEach(t => {
+        const startAngle = (t.start/24)*2*Math.PI - Math.PI/2;
+        const endAngle = (t.end/24)*2*Math.PI - Math.PI/2;
+
+        ctx.beginPath();
+        ctx.moveTo(radius,radius);
+        ctx.arc(radius,radius,radius-20,startAngle,endAngle);
+        ctx.closePath();
+        ctx.fillStyle = t.color;
+        ctx.fill();
+
+        // polished overlay
+        let grad = ctx.createRadialGradient(radius,radius, radius*0.2, radius,radius,radius);
+        grad.addColorStop(0,"rgba(200,200,200,0.05)");
+        grad.addColorStop(1,"rgba(100,100,100,0.15)");
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle="rgba(255,255,255,0.5)";
+        ctx.lineWidth=2;
+        ctx.stroke();
+      });
+
+      // Circle border
+      ctx.beginPath();
+      ctx.arc(radius, radius, radius-5, 0, 2*Math.PI);
+      ctx.lineWidth=4;
+      ctx.strokeStyle="#000";
+      ctx.stroke();
+
+      // Numbers (24h)
+      ctx.font = `${canvas.width/25}px Segoe UI`;
+      ctx.fillStyle="#000";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      for(let num=0; num<24; num++){
+        const angle=(num/24)*2*Math.PI - Math.PI/2;
+        const x=radius+Math.cos(angle)*(radius-25);
+        const y=radius+Math.sin(angle)*(radius-25);
+        ctx.fillText(num, x,y);
+      }
+
+      drawHands();
+    }
+
+    function drawHands() {
+      const now=new Date();
+      let hour=now.getHours();
+      let minute=now.getMinutes();
+      let second=now.getSeconds();
+
+      const hourAngle=(hour/24+minute/(60*24))*2*Math.PI - Math.PI/2;
+      const minAngle=(minute/60)*2*Math.PI - Math.PI/2;
+      const secAngle=(second/60)*2*Math.PI - Math.PI/2;
+
+      drawHand(hourAngle, radius*0.5, 8,"#000");
+      drawHand(minAngle, radius*0.7, 5,"#000");
+      drawHand(secAngle, radius*0.8, 2,"red");
+
+      ctx.beginPath();
+      ctx.arc(radius,radius,6,0,2*Math.PI);
+      ctx.fillStyle="#000";
+      ctx.fill();
+    }
+
+    function drawHand(angle,length,width,color){
+      ctx.beginPath();
+      ctx.lineWidth=width;
+      ctx.lineCap="round";
+      ctx.strokeStyle=color;
+      ctx.moveTo(radius,radius);
+      ctx.lineTo(radius+Math.cos(angle)*length,radius+Math.sin(angle)*length);
+      ctx.stroke();
+    }
+
+    setInterval(drawClock,1000);
+  </script>
+</body>
+</html>
